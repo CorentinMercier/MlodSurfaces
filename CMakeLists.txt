@@ -20,7 +20,7 @@ source_group(TREE ${CMAKE_CURRENT_LIST_DIR} FILES ${source_files} ${UI_GENERATED
 # -------------------------------------------------------------------------------------------------
 set(CUDA_ARCHITECTURE "" CACHE STRING "CUDA gencode(s) (flags for nvcc) to use when compiling *.cu files")
 add_executable(MLoDS ${source_files} ${UI_GENERATED} ${MOC_GENERATED} ${gpu_source_files})
-target_compile_features(MLoDS PUBLIC cxx_std_11)
+target_compile_features(MLoDS PUBLIC cxx_std_14)
 target_include_directories(MLoDS
 	PUBLIC lib/glm
 	PUBLIC lib/eigen
@@ -62,7 +62,7 @@ endif()
 # -------------------------------------------------------------------------------------------------
 if (gpu_source_files)
 	set_target_properties(MLoDS PROPERTIES
-		CUDA_STANDARD 11
+		CUDA_STANDARD 14
 		CUDA_STANDARD_REQUIRED ON
 		CUDA_SEPARABLE_COMPILATION ON)
 

@@ -1,13 +1,12 @@
 // --------------------------------------------------------------------------
-// Source code provided FOR REVIEW ONLY, as part of the submission entitled
-// "Moving Level-of-Detail Surfaces".
+// This file is part of the reference implementation for the paper
+//    Moving Level-of-Detail Surfaces.
+//    C. Mercier, T. Lescoat, P. Roussillon, T. Boubekeur, and J-M. Thiery
+//    ACM Transaction On Graphics 2022
+//    DOI: 10.1145/3528223.3530151
 //
-// A proper version of this code will be released if the paper is accepted
-// with the proper licence, documentation and bug fix.
-// Currently, this material has to be considered confidential and shall not
-// be used outside the review process.
-//
-// All right reserved. The Authors
+// All rights reserved. Use of this source code is governed by a
+// MIT license that can be found in the LICENSE file.
 // --------------------------------------------------------------------------
 
 #pragma once
@@ -57,39 +56,39 @@ struct octreeNodeGPU {
 
 	__host__ void erase()
 	{
-	if (indices != 0)
-		gpuErrchk( cudaFree(indices));
-	for (unsigned int i=0; i<8; i++)
-	{
-		if (children[i] != NULL)
-		cudaFree(children[i]);
-	}
-	cudaFree(children);
+		if (indices != 0)
+			gpuErrchk( cudaFree(indices));
+		for (unsigned int i=0; i<8; i++)
+		{
+			if (children[i] != NULL)
+			cudaFree(children[i]);
+		}
+		if(children) cudaFree(children);
 	}
 	__host__ void copy(octreeNode const * a)
 	{
-	numberOfChildren = a->numberOfChildren;
-	depth = a->depth;
-	boundingBox.copy(a->boundingBox);
-	indicesSize = a->indices.size();
-	if (indicesSize != 0)
-		gpuErrchk( cudaMallocManaged(&indices, a->indices.size() * sizeof (unsigned int)));
-	for (unsigned int i=0; i<a->indices.size(); i++)
-		indices[i] = a->indices[i];
-	nodeapssNodeStats.copy(a->nodeapssNodeStats);
-	gpuErrchk( cudaMallocManaged((void**)(&children), 8 * sizeof (octreeNodeGPU*)));
-	for (unsigned int i=0; i<8; i++)
-	{
-		if (a->children[i] != NULL)
+		numberOfChildren = a->numberOfChildren;
+		depth = a->depth;
+		boundingBox.copy(a->boundingBox);
+		indicesSize = a->indices.size();
+		if (indicesSize != 0)
+			gpuErrchk( cudaMallocManaged(&indices, a->indices.size() * sizeof (unsigned int)));
+		for (unsigned int i=0; i<a->indices.size(); i++)
+			indices[i] = a->indices[i];
+		nodeapssNodeStats.copy(a->nodeapssNodeStats);
+		gpuErrchk( cudaMallocManaged((void**)(&children), 8 * sizeof (octreeNodeGPU*)));
+		for (unsigned int i=0; i<8; i++)
 		{
-		gpuErrchk( cudaMallocManaged(&children[i], sizeof (octreeNodeGPU)));
-		children[i]->copy(a->children[i]);
+			if (a->children[i] != NULL)
+			{
+				gpuErrchk( cudaMallocManaged(&children[i], sizeof (octreeNodeGPU)));
+				children[i]->copy(a->children[i]);
+			}
+			else
+			{
+				children[i] = NULL;
+			}
 		}
-		else
-		{
-		children[i] = NULL;
-		}
-	}
 	}
 };
 
@@ -209,7 +208,7 @@ void GlobalAPSS::project(unsigned int nbOfVectors, glm::vec3 * outputPoints , gl
 		std::cerr << "No points to project" << std::endl;
 		return;
 	}
-	cudaProfilerStart();
+	gpuErrchk( cudaProfilerStart() );
 	int blockSize = 128;
 	dim3 numBlocks = computeNbBlocks(nbOfVectors, blockSize);
 

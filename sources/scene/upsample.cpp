@@ -1,13 +1,12 @@
 // --------------------------------------------------------------------------
-// Source code provided FOR REVIEW ONLY, as part of the submission entitled
-// "Moving Level-of-Detail Surfaces".
+// This file is part of the reference implementation for the paper
+//    Moving Level-of-Detail Surfaces.
+//    C. Mercier, T. Lescoat, P. Roussillon, T. Boubekeur, and J-M. Thiery
+//    ACM Transaction On Graphics 2022
+//    DOI: 10.1145/3528223.3530151
 //
-// A proper version of this code will be released if the paper is accepted
-// with the proper licence, documentation and bug fix.
-// Currently, this material has to be considered confidential and shall not
-// be used outside the review process.
-//
-// All right reserved. The Authors
+// All rights reserved. Use of this source code is governed by a
+// MIT license that can be found in the LICENSE file.
 // --------------------------------------------------------------------------
 
 #include "upsample.h"
@@ -60,7 +59,7 @@ void regularize_siblings(std::vector<octree_id>& nodes)
 
 	nodes.resize(9 * s);
 #pragma omp parallel for
-	for(size_t t = 0; t < s; t++)
+	for(int t = 0; t < (int)s; t++)
 		add_siblings(t);
 	remove_duplicates(nodes);
 }
@@ -136,7 +135,7 @@ std::vector<octree_id> OctreeGenerator::generateFromPoints(unsigned int max_dept
 		octzone = {box};
 	std::vector<octree_id> nodes(pts.size());
 #pragma omp parallel for
-	for (unsigned i=0; i<pts.size(); i++)
+	for (int i=0; i< (int)pts.size(); i++)
 	{
 		nodes[i] = octzone.enclosing(to_eigen(pts[i]), max_depth);
 	}
@@ -164,7 +163,7 @@ int getRelativeDepth(const std::vector<octree_id>& nodes, Eigen::Vector3i& max, 
 void onlySetDepthNodes(std::vector<octree_id>& nodes, unsigned int depth)
 {
 #pragma omp parallel for
-	for (unsigned i=0; i<nodes.size(); i++)
+	for (int i=0; i< (int)nodes.size(); i++)
 	{
 		if (unsigned(nodes[i].depth) > depth)
 			nodes[i] = nodes[i].ancestor_at_depth(depth);
@@ -196,7 +195,7 @@ void OctreeGenerator::expand_to_neighbors(std::vector<octree_id>& nodes, std::ve
 	};
 	std::vector<glm::vec3> centers(nodes.size());
 #pragma omp parallel for
-	for (unsigned i=0; i<nodes.size(); i++)
+	for (int i=0; i< (int)nodes.size(); i++)
 	{
 		Eigen::Vector3f c = octzone.center(nodes[i]);
 		centers[i] = glm::vec3(c.x(), c.y(), c.z());
@@ -323,7 +322,7 @@ void OctreeGenerator::find_stable_nodesGPU(const std::vector<octree_id>& nodes, 
 	};
 	std::vector<glm::vec3> centers(nodes.size());
 #pragma omp parallel for
-	for (unsigned i=0; i<nodes.size(); i++)
+	for (int i=0; i< (int)nodes.size(); i++)
 	{
 		Eigen::Vector3f c = octzone.center(nodes[i]);
 		centers[i] = glm::vec3(c.x(), c.y(), c.z());
@@ -335,7 +334,7 @@ void OctreeGenerator::find_stable_nodesGPU(const std::vector<octree_id>& nodes, 
 
 	out.resize(nodes.size());
 #pragma omp parallel for
-	for (unsigned i=0; i<out.size(); i++)
+	for (int i=0; i< (int)out.size(); i++)
 	{
 		if (glm::length2(projectedNormals[i]) < 0.5f)
 			out[i] = octree_id();//Point was not projected, so we do not wish to add a bad octree_id. Root is always included.
@@ -350,7 +349,7 @@ void OctreeGenerator::add_children(const std::vector<octree_id>& nodes, std::vec
 {
 	out.resize(nodes.size() * 8);
 #pragma omp parallel for
-	for (unsigned i = 0; i < nodes.size(); i++)
+	for (int i = 0; i < (int)nodes.size(); i++)
 	{
 		const octree_id& n = nodes[i];
 		for(unsigned int c = 0; c < 8; c++)
@@ -361,7 +360,7 @@ void OctreeGenerator::add_children(const std::vector<octree_id>& nodes, std::vec
 std::vector<octree_id> depth0_ancestors(std::vector<octree_id> nodes)
 {
 #pragma omp parallel for
-	for(unsigned int i = 0; i < nodes.size(); i++)
+	for(int i = 0; i < (int)nodes.size(); i++)
 		nodes[i] = nodes[i].ancestor_at_depth(0);
 	remove_duplicates(nodes);
 	return nodes;
@@ -388,7 +387,7 @@ Eigen::Vector4i union_nodes(std::vector<octree_id>& nodes)
 	if(delta_depth == 0) return { -1, 0, 0, 0 };
 
 #pragma omp parallel for
-	for(unsigned i=0; i<nodes.size(); i++)
+	for(int i=0; i< (int)nodes.size(); i++)
 	{
 		octree_id& n = nodes[i];
 		n.pos -= min * (1 << n.depth);

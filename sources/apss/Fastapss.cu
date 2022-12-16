@@ -1,13 +1,12 @@
 // --------------------------------------------------------------------------
-// Source code provided FOR REVIEW ONLY, as part of the submission entitled
-// "Moving Level-of-Detail Surfaces".
+// This file is part of the reference implementation for the paper
+//    Moving Level-of-Detail Surfaces.
+//    C. Mercier, T. Lescoat, P. Roussillon, T. Boubekeur, and J-M. Thiery
+//    ACM Transaction On Graphics 2022
+//    DOI: 10.1145/3528223.3530151
 //
-// A proper version of this code will be released if the paper is accepted
-// with the proper licence, documentation and bug fix.
-// Currently, this material has to be considered confidential and shall not
-// be used outside the review process.
-//
-// All right reserved. The Authors
+// All rights reserved. Use of this source code is governed by a
+// MIT license that can be found in the LICENSE file.
 // --------------------------------------------------------------------------
 
 #include "Fastapss.h"
@@ -32,42 +31,53 @@ Fastapss::Fastapss(APSSOctree *apssOctree, const Kernel &kernel, unsigned int nb
 ///
 //////////////////////////////////////////////////////////////////////////
 
-struct apssNodeStatsGPUSoA{
-	unsigned int m_nbOfLeaves;
-	float3 * s_ai_pi = NULL;
-	float3* s_ai_ni = NULL;
-	float * s_ai_pi_ni = NULL;
-	float * s_ai_pi_pi = NULL;
-	float * s_ai = NULL;
+struct apssNodeStatsGPUSoA
+{
+	unsigned int m_nbOfLeaves = 0;
+	float3 * s_ai_pi = nullptr;
+	float3* s_ai_ni = nullptr;
+	float * s_ai_pi_ni = nullptr;
+	float * s_ai_pi_pi = nullptr;
+	float * s_ai = nullptr;
 
 	__host__ void init(unsigned int nbOfLeaves)
 	{
 		m_nbOfLeaves = nbOfLeaves;
-		cudaMallocManaged(&s_ai_pi, m_nbOfLeaves * sizeof (float3));
-		cudaMallocManaged(&s_ai_ni, m_nbOfLeaves * sizeof (float3));
-		cudaMallocManaged(&s_ai_pi_ni, m_nbOfLeaves * sizeof (float));
-		cudaMallocManaged(&s_ai_pi_pi, m_nbOfLeaves * sizeof (float));
-		cudaMallocManaged(&s_ai, m_nbOfLeaves * sizeof (float));
+		gpuErrchk( cudaMalloc(&s_ai_pi, m_nbOfLeaves * sizeof (float3)) );
+		gpuErrchk( cudaMalloc(&s_ai_ni, m_nbOfLeaves * sizeof (float3)) );
+		gpuErrchk( cudaMalloc(&s_ai_pi_ni, m_nbOfLeaves * sizeof (float)) );
+		gpuErrchk( cudaMalloc(&s_ai_pi_pi, m_nbOfLeaves * sizeof (float)) );
+		gpuErrchk( cudaMalloc(&s_ai, m_nbOfLeaves * sizeof (float)) );
 	}
 	__host__ void erase()
 	{
-		if (s_ai_pi){ gpuErrchk(cudaFree(s_ai_pi)); s_ai_pi = NULL;}
-		if (s_ai_ni){ gpuErrchk(cudaFree(s_ai_ni)); s_ai_ni = NULL;}
-		if (s_ai_pi_ni){ gpuErrchk(cudaFree(s_ai_pi_ni)); s_ai_pi_ni = NULL;}
-		if (s_ai_pi_pi){ gpuErrchk(cudaFree(s_ai_pi_pi)); s_ai_pi_pi = NULL;}
-		if (s_ai){ gpuErrchk(cudaFree(s_ai)); s_ai = NULL;}
+		if (s_ai_pi)    { gpuErrchk(cudaFree(s_ai_pi));    s_ai_pi = nullptr; }
+		if (s_ai_ni)    { gpuErrchk(cudaFree(s_ai_ni));    s_ai_ni = nullptr; }
+		if (s_ai_pi_ni) { gpuErrchk(cudaFree(s_ai_pi_ni)); s_ai_pi_ni = nullptr; }
+		if (s_ai_pi_pi) { gpuErrchk(cudaFree(s_ai_pi_pi)); s_ai_pi_pi = nullptr; }
+		if (s_ai)       { gpuErrchk(cudaFree(s_ai));       s_ai = nullptr; }
 	}
 	__host__ void copy(std::vector<apssNodeStats> const & a)
 	{
 		init(a.size());
-		for (unsigned int i=0; i<a.size(); i++)
+		std::unique_ptr<float3[]> h_ai_pi    = std::make_unique<float3[]>(size_t(m_nbOfLeaves));
+		std::unique_ptr<float3[]> h_ai_ni    = std::make_unique<float3[]>(size_t(m_nbOfLeaves));
+		std::unique_ptr<float[]>  h_ai_pi_ni = std::make_unique<float[]>(size_t(m_nbOfLeaves));
+		std::unique_ptr<float[]>  h_ai_pi_pi = std::make_unique<float[]>(size_t(m_nbOfLeaves));
+		std::unique_ptr<float[]>  h_ai       = std::make_unique<float[]>(size_t(m_nbOfLeaves));
+		for(unsigned int i = 0; i < a.size(); i++)
 		{
-			s_ai_ni[i] = make_float3(a[i].s_ai_ni.x, a[i].s_ai_ni.y, a[i].s_ai_ni.z);
-			s_ai_pi[i] = make_float3(a[i].s_ai_pi.x, a[i].s_ai_pi.y, a[i].s_ai_pi.z);
-			s_ai_pi_ni[i] = a[i].s_ai_pi_ni;
-			s_ai_pi_pi[i] = a[i].s_ai_pi_pi;
-			s_ai[i] = a[i].s_ai;
+			h_ai_ni[i]    = make_float3(a[i].s_ai_ni.x, a[i].s_ai_ni.y, a[i].s_ai_ni.z);
+			h_ai_pi[i]    = make_float3(a[i].s_ai_pi.x, a[i].s_ai_pi.y, a[i].s_ai_pi.z);
+			h_ai_pi_ni[i] = a[i].s_ai_pi_ni;
+			h_ai_pi_pi[i] = a[i].s_ai_pi_pi;
+			h_ai[i]       = a[i].s_ai;
 		}
+		gpuErrchk( cudaMemcpy(s_ai_ni,    h_ai_ni.get(),    m_nbOfLeaves * sizeof(float3), cudaMemcpyHostToDevice) );
+		gpuErrchk( cudaMemcpy(s_ai_pi,    h_ai_pi.get(),    m_nbOfLeaves * sizeof(float3), cudaMemcpyHostToDevice) );
+		gpuErrchk( cudaMemcpy(s_ai_pi_ni, h_ai_pi_ni.get(), m_nbOfLeaves * sizeof(float), cudaMemcpyHostToDevice) );
+		gpuErrchk( cudaMemcpy(s_ai_pi_pi, h_ai_pi_pi.get(), m_nbOfLeaves * sizeof(float), cudaMemcpyHostToDevice) );
+		gpuErrchk( cudaMemcpy(s_ai,       h_ai.get(),       m_nbOfLeaves * sizeof(float), cudaMemcpyHostToDevice) );
 	}
 };
 
@@ -91,6 +101,10 @@ void copy(octreeNode const * a, octreeNodeGPU2 * b, unsigned int numberOfNodes)
 	nodes.resize(numberOfNodes, nullptr);
 	related.resize(numberOfNodes);
 	a->getRelations(nodes, related);
+
+	uint32_t num_indices_to_copy = 0;
+	std::vector<unsigned int> whose_indices_to_copy;
+
 	for(unsigned int i=0; i<numberOfNodes; i++)
 	{
 		b[i].depth = nodes[i]->depth;
@@ -104,16 +118,34 @@ void copy(octreeNode const * a, octreeNodeGPU2 * b, unsigned int numberOfNodes)
 		b[i].indicesSize = nodes[i]->indices.size();
 		if (b[i].indicesSize != 0)
 		{
-			cudaMallocManaged(&b[i].indices, b[i].indicesSize * sizeof (unsigned int));
-			for (unsigned int j=0; j<b[i].indicesSize; j++)
-			{
-				b[i].indices[j] = nodes[i]->indices[j];
-			}
+			whose_indices_to_copy.push_back(i);
+			num_indices_to_copy += b[i].indicesSize;
 		}
 		b[i].numberOfChildren = nodes[i]->numberOfChildren;
 		b[i].father = related[i].father;
 		b[i].nextBrother = related[i].nextBrother;
 		b[i].firstChild = related[i].firstChild;
+	}
+
+	if(num_indices_to_copy > 0)
+	{
+		unsigned int* indices = nullptr;
+		gpuErrchk(cudaMalloc(&indices, num_indices_to_copy * sizeof(unsigned int)));
+		uint32_t offset = 0;
+		for (unsigned int i : whose_indices_to_copy)
+		{
+			b[i].indices = indices + offset;
+			offset += b[i].indicesSize;
+		}
+
+		std::unique_ptr<unsigned int[]> idxCPU = std::make_unique<unsigned int[]>(num_indices_to_copy * sizeof(unsigned int));
+		unsigned int* idx = idxCPU.get();
+		for(unsigned int i : whose_indices_to_copy)
+		{
+			for (unsigned int j = 0; j < b[i].indicesSize; j++)
+				*(idx++) = nodes[i]->indices[j];
+		}
+		gpuErrchk( cudaMemcpy(indices, idxCPU.get(), num_indices_to_copy * sizeof(unsigned int), cudaMemcpyHostToDevice) );
 	}
 }
 
@@ -411,16 +443,15 @@ void Fastapss::project(unsigned int nbOfVectors, glm::vec3 *outputPoints, glm::v
 		std::cerr << "No points to project" << std::endl;
 		return;
 	}
-	gpuErrchk( cudaPeekAtLastError() );
 	int blockSize = 128;
 	dim3 numBlocks = computeNbBlocks(nbOfVectors, blockSize);
 	if (stepMaxSize < 0)
 		stepMaxSize =  m_apssOctree->getBoundingBox().radius();
-	projectCuda<<<numBlocks, blockSize>>>(nbOfVectors, m_outPts, m_outPts, m_outNmls, n_iterations, m_kernelCuda, m_minDepth, m_scalingProtectionSphere, *m_apssNodeStatsCudaSoA, m_nodesBis, stepMaxSize, blockSize);
+	projectCuda<<<numBlocks, blockSize>>>(nbOfVectors, m_outPts, m_outPts, m_outNmls, n_iterations, m_kernelCuda, m_minDepth, m_scalingProtectionSphere, *m_apssNodeStatsGPU, m_nodesBisGPU, stepMaxSize, blockSize);
 	gpuErrchk( cudaPeekAtLastError() );
 
-	gpuErrchk( cudaMemcpy(outputPoints, m_outPts, nbOfVectors * sizeof (float3), cudaMemcpyDeviceToHost));
-	gpuErrchk( cudaMemcpy(outputNormals, m_outNmls, nbOfVectors * sizeof (float3), cudaMemcpyDeviceToHost));
+	if(outputPoints) gpuErrchk( cudaMemcpy(outputPoints, m_outPts, nbOfVectors * sizeof (float3), cudaMemcpyDeviceToHost));
+	if(outputNormals) gpuErrchk( cudaMemcpy(outputNormals, m_outNmls, nbOfVectors * sizeof (float3), cudaMemcpyDeviceToHost));
 }
 
 void Fastapss::copyToGPU(const Kernel &kernel, unsigned int nbOfVectors)
@@ -430,34 +461,53 @@ void Fastapss::copyToGPU(const Kernel &kernel, unsigned int nbOfVectors)
 	std::cout << "Tree is being copied to GPU memory... " << std::flush;
 	m_numberOfNodes = m_apssOctree->get_root()->nbOfNodes();
 	std::cout << "Number of nodes : " << m_numberOfNodes << std::endl;
-	gpuErrchk( cudaMallocManaged(&m_nodesBis, m_numberOfNodes * sizeof (octreeNodeGPU2)));
-	gpuErrchk( cudaMallocManaged(&m_apssNodeStatsCudaSoA, sizeof(apssNodeStatsGPUSoA)));
-	gpuErrchk( cudaMallocManaged(&m_kernelCuda, sizeof(KernelGPU)));
-
-	gpuErrchk( cudaPeekAtLastError() );
+	
 	//Fill GPU memory
-	copy(m_apssOctree->get_root(), m_nodesBis, m_numberOfNodes);
-	gpuErrchk( cudaPeekAtLastError() );
-	m_kernelCuda->copy(kernel);
-	gpuErrchk( cudaPeekAtLastError() );
-	m_apssNodeStatsCudaSoA->copy(m_apssOctree->getPointsApssNodeStats());
-	std::cout << "    Done" << std::endl;
+	m_nodesBisCPU = new octreeNodeGPU2[m_numberOfNodes];
+	copy(m_apssOctree->get_root(), m_nodesBisCPU, m_numberOfNodes);
+	gpuErrchk(cudaMalloc(&m_nodesBisGPU, m_numberOfNodes * sizeof(octreeNodeGPU2)));
+	gpuErrchk(cudaMemcpy(m_nodesBisGPU, m_nodesBisCPU, m_numberOfNodes * sizeof(octreeNodeGPU2), cudaMemcpyHostToDevice));
 
-	gpuErrchk( cudaPeekAtLastError() );
+	// Kernel
+	KernelGPU kernelOnCPU;
+	kernelOnCPU.copy(kernel);
+	gpuErrchk(cudaMalloc(&m_kernelCuda, sizeof(KernelGPU)));
+	gpuErrchk(cudaMemcpy(m_kernelCuda, &kernelOnCPU, sizeof(KernelGPU), cudaMemcpyHostToDevice));
+
+	// Stats
+	m_apssNodeStatsCPU = new apssNodeStatsGPUSoA();
+	m_apssNodeStatsCPU->copy(m_apssOctree->getPointsApssNodeStats());
+	gpuErrchk(cudaMalloc(&m_apssNodeStatsGPU, sizeof(apssNodeStatsGPUSoA)));
+	gpuErrchk(cudaMemcpy(m_apssNodeStatsGPU, m_apssNodeStatsCPU, sizeof(apssNodeStatsGPUSoA), cudaMemcpyHostToDevice));
+	std::cout << "    Done" << std::endl;
 	std::cout << "Tree depth: " << m_apssOctree->get_root()->computeDepth() << std::endl;
 }
 
 void Fastapss::eraseFromGPU()
 {
 	gpuErrchk( cudaPeekAtLastError() );
-	cudaFree(m_kernelCuda);
-	m_apssNodeStatsCudaSoA->erase();
-	cudaFree(m_apssNodeStatsCudaSoA);
-	gpuErrchk( cudaPeekAtLastError() );
-	for (unsigned int i=0; i<m_numberOfNodes; i++)
-		m_nodesBis[i].erase();
-	cudaFree(m_nodesBis);
-	gpuErrchk( cudaPeekAtLastError() );
+	gpuErrchk(cudaFree(m_kernelCuda));
+
+	// Stats
+	m_apssNodeStatsCPU->erase();
+	delete m_apssNodeStatsCPU;
+	m_apssNodeStatsCPU = nullptr;
+	gpuErrchk(cudaFree(m_apssNodeStatsGPU));
+	m_apssNodeStatsGPU = nullptr;
+
+	// Nodes bis, note that the allocation for "indices" is shared, so
+	// we shall only free it once. The actual pointer can be found in
+	// the first node that has a valid "indices" pointer.
+	for (unsigned int i = 0; i < m_numberOfNodes; i++)
+		if(m_nodesBisCPU[i].indicesSize > 0)
+		{
+			gpuErrchk( cudaFree(m_nodesBisCPU[i].indices) );
+			break;
+		}
+	delete[] m_nodesBisCPU;
+	m_nodesBisCPU = nullptr;
+	gpuErrchk(cudaFree(m_nodesBisGPU));
+	m_nodesBisGPU = nullptr;
 }
 
 void Fastapss::projectCPU(const glm::vec3 &qStart, glm::vec3 &outputPoint, glm::vec3 &outputNormal, unsigned int n_iterations, const Kernel &kernel, float stepMaxSize) const

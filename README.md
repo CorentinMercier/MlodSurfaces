@@ -1,15 +1,31 @@
 # Moving Level-of-Detail Surfaces
 
+
+>**Moving Level-Of-Detail Surfaces** <br/>
+*Corentin Mercier, Thibault Lescoat, Pierre Roussillon, Tamy Boubekeur and Jean-Marc Thiery.*<br/>
+ACM Transaction On Graphics 2022<br/>
+DOI: 10.1145/3528223.3530151<br/>
+
+You can find the paper and the video presentation here: https://perso.telecom-paristech.fr/boubek/papers/MLoDSurfaces/
+
+This is not the exact same version of the source code that is used to measure performance for the corresponding paper. Performance might have been slightly affected during refactoring.
+
+Copyright(C) 2022 Corentin Mercier, Thibault Lescoat, Pierre Roussillon, Tamy Boubekeur and Jean-Marc Thiery
+
+All right reserved
+
 # Installation instructions
 
 This code was tested under Linux using Ubuntu 18.04 and 20.04.
-It might compile under Windows 10, however, performance might be worse than under Linux.
+It compiles and runs under Windows 10 using Visual Studio 2019, however, performance might be worse than under Linux.
 
 Code dependencies:
 - Qt5
 - CUDA (version 10.1 tested)
 - cmake (>= 3.12)
 - openmp
+
+Linux compilation instructions:
 
 ```
 mkdir build
@@ -18,6 +34,9 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j
 cd ../bin
 ```
+
+A stand alone version of the code, compiled for x64 and tested on windows 10 can be directly executed in the subfolder 
+.../StandaloneBinary/MLoDS.exe
 
 # Usage
 ```
@@ -61,12 +80,12 @@ Some data can be found in the folder data.
 They are accompanied by .params file with the same names that contain parameters suited to the model (they can be overwritten by quitting the software using File/Quit)
 
 # License
-Source code provided FOR REVIEW ONLY, as part of the submission entitled
-"Moving Level-of-Detail Surfaces".
 
-A proper version of this code will be released if the paper is accepted
-with the proper licence, documentation and bug fix.
-Currently, this material has to be considered confidential and shall not
-be used outside the review process.
+Source code for the submission:
+   Moving Level-of-Detail Surfaces.
+   C. Mercier, T. Lescoat, P. Roussillon, T. Boubekeur and J-M. Thiery
+   ACM Transaction On Graphics 2022
+   DOI: 10.1145/3528223.3530151
 
-All right reserved. The Authors
+All rights reserved. Use of this source code is governed by a
+MIT license that can be found in the LICENSE file.

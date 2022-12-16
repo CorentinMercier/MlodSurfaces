@@ -1,13 +1,12 @@
 // --------------------------------------------------------------------------
-// Source code provided FOR REVIEW ONLY, as part of the submission entitled
-// "Moving Level-of-Detail Surfaces".
+// This file is part of the reference implementation for the paper
+//    Moving Level-of-Detail Surfaces.
+//    C. Mercier, T. Lescoat, P. Roussillon, T. Boubekeur, and J-M. Thiery
+//    ACM Transaction On Graphics 2022
+//    DOI: 10.1145/3528223.3530151
 //
-// A proper version of this code will be released if the paper is accepted
-// with the proper licence, documentation and bug fix.
-// Currently, this material has to be considered confidential and shall not
-// be used outside the review process.
-//
-// All right reserved. The Authors
+// All rights reserved. Use of this source code is governed by a
+// MIT license that can be found in the LICENSE file.
 // --------------------------------------------------------------------------
 
 #include "Pn.h"

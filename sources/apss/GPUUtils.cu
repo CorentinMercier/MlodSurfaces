@@ -1,13 +1,12 @@
 // --------------------------------------------------------------------------
-// Source code provided FOR REVIEW ONLY, as part of the submission entitled
-// "Moving Level-of-Detail Surfaces".
+// This file is part of the reference implementation for the paper
+//    Moving Level-of-Detail Surfaces.
+//    C. Mercier, T. Lescoat, P. Roussillon, T. Boubekeur, and J-M. Thiery
+//    ACM Transaction On Graphics 2022
+//    DOI: 10.1145/3528223.3530151
 //
-// A proper version of this code will be released if the paper is accepted
-// with the proper licence, documentation and bug fix.
-// Currently, this material has to be considered confidential and shall not
-// be used outside the review process.
-//
-// All right reserved. The Authors
+// All rights reserved. Use of this source code is governed by a
+// MIT license that can be found in the LICENSE file.
 // --------------------------------------------------------------------------
 
 #pragma once
@@ -30,9 +29,10 @@
 ///
 //////////////////////////////////////////////////////////////////////////
 
-#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
-inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+#define gpuErrchk(ans) { gpuAssert((ans), #ans, __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char* command, const char *file, int line, bool abort=true)
 {
+	//printf("%s = %i\n", command, (int)code);
 	if (code != cudaSuccess)
 	{
 		fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
@@ -269,9 +269,8 @@ struct KernelGPU{
 		sigmasSize = a.sigmas.size();
 		if (sigmasSize !=0)
 		{
-			cudaMallocManaged(&sigmas, a.sigmas.size()*sizeof (float));
-			for (unsigned int i=0; i<a.sigmas.size(); i++)
-				sigmas[i] = a.sigmas[i];
+			gpuErrchk( cudaMalloc(&sigmas, a.sigmas.size() * sizeof(float)) );
+			gpuErrchk( cudaMemcpy(sigmas, a.sigmas.data(), a.sigmas.size() * sizeof(float), cudaMemcpyHostToDevice) );
 		}
 	}
 	__host__ void print() const
@@ -309,17 +308,11 @@ struct octreeNodeGPU2 {
 	float s_ai_pi_ni , s_ai_pi_pi;
 	float s_ai;
 	unsigned int indicesSize;
-	unsigned int *indices;
+	unsigned int* indices = nullptr;
 	unsigned int numberOfChildren;
 	int firstChild;
 	int nextBrother;
 	int father;
-
-	__host__ void erase()
-	{
-		if (indicesSize != 0)
-			cudaFree(indices);
-	}
 };
 
 struct apssStatsGPU{
@@ -400,7 +393,7 @@ struct apssStatsGPU{
 
 void APSS::stop()
 {
-	cudaProfilerStop();
+	gpuErrchk( cudaProfilerStop() );
 }
 
 void APSS::eraseAndRestart()
@@ -472,5 +465,8 @@ void APSS::erasePointsFromGPU()
 
 void APSS::updateKernel(Kernel const & kernel)
 {
-	m_kernelCuda->copy(kernel);
+	KernelGPU kernelOnCPU;
+	kernelOnCPU.copy(kernel);
+	gpuErrchk(cudaMalloc(&m_kernelCuda, sizeof(KernelGPU)));
+	gpuErrchk(cudaMemcpy(m_kernelCuda, &kernelOnCPU, sizeof(KernelGPU), cudaMemcpyHostToDevice));
 }

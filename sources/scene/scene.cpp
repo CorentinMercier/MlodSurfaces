@@ -1,13 +1,12 @@
 // --------------------------------------------------------------------------
-// Source code provided FOR REVIEW ONLY, as part of the submission entitled
-// "Moving Level-of-Detail Surfaces".
+// This file is part of the reference implementation for the paper
+//    Moving Level-of-Detail Surfaces.
+//    C. Mercier, T. Lescoat, P. Roussillon, T. Boubekeur, and J-M. Thiery
+//    ACM Transaction On Graphics 2022
+//    DOI: 10.1145/3528223.3530151
 //
-// A proper version of this code will be released if the paper is accepted
-// with the proper licence, documentation and bug fix.
-// Currently, this material has to be considered confidential and shall not
-// be used outside the review process.
-//
-// All right reserved. The Authors
+// All rights reserved. Use of this source code is governed by a
+// MIT license that can be found in the LICENSE file.
 // --------------------------------------------------------------------------
 
 #include "scene.h"
@@ -927,7 +926,11 @@ double scene::projectPoints(bool updateBuffer)
 			m_pnProjectedPoints[m_currentProjection] = new Pn(m_pnToProject2);
 	}
 	start = std::chrono::high_resolution_clock::now();
-	m_apss->project(m_pnProjectedPoints[m_currentProjection]->validSize(), m_pnProjectedPoints[m_currentProjection]->positionData(), m_pnProjectedPoints[m_currentProjection]->normalData(), 1, *m_weightKernel);
+	m_apss->project(m_pnProjectedPoints[m_currentProjection]->validSize(),
+		updateBuffer ? m_pnProjectedPoints[m_currentProjection]->positionData() : nullptr,
+		updateBuffer ? m_pnProjectedPoints[m_currentProjection]->normalData() : nullptr,
+		1,
+		*m_weightKernel);
 	stop = std::chrono::high_resolution_clock::now();
 
 #ifdef CHECK
@@ -1360,7 +1363,7 @@ double scene::computeDualContouring(string filename, bool recordOctree)
 	std::vector<glm::vec3> listOfCorners(octSize * 8), listOfNormals(octSize * 8), listOfProjectedCorners(octSize * 8);
 	std::vector<Eigen::Vector3i> allCorners(octSize * 8);
 #pragma omp parallel for
-	for (unsigned i=0; i<octSize; i++)
+	for (int i=0; i< (int)octSize; i++)
 	{
 		const octree_id n = totalUpsamplingOctree.id(i);
 		for (unsigned c=0; c<8; c++)
@@ -1399,7 +1402,7 @@ double scene::computeDualContouring(string filename, bool recordOctree)
 	std::vector<glm::vec3> vertices(verticesAndNormals.size());
 	std::vector<glm::vec3> normals(verticesAndNormals.size());
 #pragma omp parallel for
-	for (unsigned i=0; i<verticesAndNormals.size(); i++)
+	for (int i=0; i< (int)verticesAndNormals.size(); i++)
 	{
 		Eigen::Vector4f v = new2bbox * Eigen::Vector4f(verticesAndNormals[i].position.x(), verticesAndNormals[i].position.y(), verticesAndNormals[i].position.z(), 1.f);
 		vertices[i] = glm::vec3(v.x(), v.y(), v.z());
@@ -1415,7 +1418,7 @@ double scene::computeDualContouring(string filename, bool recordOctree)
 		if (m_apssOctree->isAPSS())
 		{
 #pragma omp parallel for
-			for (unsigned i=0; i<vertices.size(); i++)
+			for (int i=0; i< (int)vertices.size(); i++)
 				m_apss->projectCPU(vertices[i], vertices[i], normals[i], 3, *m_weightKernel);
 		}
 		else
@@ -1436,7 +1439,7 @@ double scene::computeDualContouring(string filename, bool recordOctree)
 			if (m_apssOctree->isAPSS())
 			{
 #pragma omp parallel for
-				for (unsigned i=0; i<vertices.size(); i++)
+				for (int i=0; i< (int)vertices.size(); i++)
 					m_apss->projectCPU(vertices[i], vertices[i], normals[i], 3, *m_weightKernel);
 			}
 			else
@@ -1734,7 +1737,7 @@ void scene::checkForInvalidPoints(unsigned & nbOfInvalidPts)
 	}
 	//Invalid points are put at the end of the vector, so that they are not used any more
 #pragma omp parallel for
-	for (unsigned j=0; j<invalidPts.size(); j++)
+	for (int j=0; j< (int)invalidPts.size(); j++)
 	{
 		const glm::vec3 temp = (*m_pnProjectedPoints[i])[invalidPts[j]];
 		(*m_pnProjectedPoints[i])[invalidPts[j]] = (*m_pnProjectedPoints[i])[m_pnProjectedPoints[i]->validSize() - 1 - j];
